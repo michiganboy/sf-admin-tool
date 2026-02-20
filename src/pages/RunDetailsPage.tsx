@@ -23,10 +23,12 @@ export default function RunDetailsPage({ runId, onBack }: RunDetailsPageProps) {
 
   useEffect(() => {
     let cancelled = false;
-    setError(null);
     getRunById(runId)
       .then((r) => {
-        if (!cancelled) setRun(r ?? null);
+        if (!cancelled) {
+          setRun(r ?? null);
+          setError(null);
+        }
       })
       .catch((e) => {
         if (!cancelled) {

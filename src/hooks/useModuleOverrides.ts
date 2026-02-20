@@ -46,7 +46,7 @@ export function useModuleOverrides() {
       const cur = next[moduleId];
       if (category === undefined || category.trim() === "") {
         if (cur) {
-          const { category: _c, tags } = cur;
+          const { tags } = cur;
           if (tags !== undefined && tags.length > 0) next[moduleId] = { tags };
           else delete next[moduleId];
         }
@@ -65,7 +65,7 @@ export function useModuleOverrides() {
       const normalized = tags === undefined ? undefined : normalizeTags(tags);
       if (normalized === undefined || normalized.length === 0) {
         if (cur) {
-          const { tags: _t, category } = cur;
+          const { category } = cur;
           if (category !== undefined) next[moduleId] = { category };
           else delete next[moduleId];
         }

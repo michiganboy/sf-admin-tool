@@ -346,7 +346,7 @@ fastify.get("/", async (_req, reply) => {
 });
 
 fastify.setNotFoundHandler((_, reply) => {
-  return (reply as any).type("text/html").sendFile("index.html");
+  return reply.type("text/html").sendFile("index.html");
 });
 
 const PORT = 4387;

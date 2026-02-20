@@ -20,4 +20,14 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  // Context/hook files and module entry points export both component and non-component; allow for clarity.
+  {
+    files: [
+      'src/contexts/ColorModeContext.tsx',
+      'src/contexts/ToastContext.tsx',
+      'src/modules/connected-apps/module.tsx',
+      'src/modules/permissions/module.tsx',
+    ],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
 ])
