@@ -1,4 +1,4 @@
-import type { AdminModule } from "../../modules/_types";
+import type { AdminModule } from "../../moduleEngine/types";
 
 const MAX_VISIBLE_TAGS = 3;
 

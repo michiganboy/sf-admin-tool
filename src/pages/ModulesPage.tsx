@@ -18,8 +18,9 @@ import StarBorderIcon from "@mui/icons-material/StarBorder";
 import PageHeader from "../components/PageHeader";
 import { useFavorites } from "../hooks/useFavorites";
 import { useModuleOverrides } from "../hooks/useModuleOverrides";
-import { getEffectiveModuleMeta } from "../modules/getEffectiveModuleMeta";
-import { getModules } from "../modules/registry";
+import { getEffectiveModuleMeta } from "../moduleEngine/getEffectiveModuleMeta";
+import { useAllModules } from "../moduleEngine/useAllModules";
+import { getEnabledIds } from "../moduleEngine/moduleEnablement";
 import {
   getModulesViewModel,
   getVisibleTagsAndOverflow,
@@ -31,22 +32,29 @@ export interface ModulesPageProps {
 
 /** Modules list with search, tag filter, favorites, and category grouping. Uses effective meta (defaults + overrides). */
 export default function ModulesPage({ onSelectModule }: ModulesPageProps) {
-  const allModules = useMemo(() => getModules(), []);
+  const { modules: allModules, loading } = useAllModules();
   const { overrides } = useModuleOverrides();
   const { favoritesSet, toggleFavorite } = useFavorites();
   const [search, setSearch] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
+  const enabledModules = useMemo(() => {
+    const enabledIds = getEnabledIds();
+    if (enabledIds === null) return allModules;
+    const enabledSet = new Set(enabledIds);
+    return allModules.filter((mod) => enabledSet.has(mod.id));
+  }, [allModules]);
+
   const modulesWithMeta = useMemo(
     () =>
-      allModules.map((mod) => {
+      enabledModules.map((mod) => {
         const { effectiveCategory, effectiveTags } = getEffectiveModuleMeta(
           mod,
           overrides
         );
         return { ...mod, effectiveCategory, effectiveTags };
       }),
-    [allModules, overrides]
+    [enabledModules, overrides]
   );
 
   const { groups, availableTags, counts } = useMemo(
@@ -110,7 +118,11 @@ export default function ModulesPage({ onSelectModule }: ModulesPageProps) {
         <Typography variant="caption" color="text.secondary">
           Showing {counts.filteredCount} of {counts.totalCount} modules
         </Typography>
-        {counts.filteredCount === 0 ? (
+        {loading ? (
+          <Typography variant="body2" color="text.secondary">
+            Loading modules...
+          </Typography>
+        ) : counts.filteredCount === 0 ? (
           <Typography variant="body2" color="text.secondary">
             No modules match your search.
           </Typography>

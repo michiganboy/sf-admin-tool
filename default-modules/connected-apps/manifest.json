@@ -1,0 +1,9 @@
+{
+  "moduleId": "connected-apps",
+  "name": "Connected Apps",
+  "description": "Manage connected app definitions and OAuth clients.",
+  "version": "1.0.0",
+  "category": "admin",
+  "sectionCategory": "Connected Apps",
+  "tags": ["oauth", "jwt", "audit"]
+}

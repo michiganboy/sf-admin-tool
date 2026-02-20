@@ -1,0 +1,9 @@
+{
+  "moduleId": "permissions",
+  "name": "Permissions",
+  "description": "Inspect and compare permission sets and profiles.",
+  "version": "1.0.0",
+  "category": "admin",
+  "sectionCategory": "Permissions",
+  "tags": ["profiles", "permission-sets", "audit"]
+}

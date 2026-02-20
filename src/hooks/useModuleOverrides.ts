@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { STORAGE_KEYS } from "../constants/storageKeys";
-import type { ModuleOverrides } from "../modules/getEffectiveModuleMeta";
-import { normalizeTags } from "../modules/getEffectiveModuleMeta";
+import type { ModuleOverrides } from "../moduleEngine/getEffectiveModuleMeta";
+import { normalizeTags } from "../moduleEngine/getEffectiveModuleMeta";
 
 function loadOverrides(): ModuleOverrides {
   if (typeof window === "undefined") return {};
