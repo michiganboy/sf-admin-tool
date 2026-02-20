@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Autocomplete,
   Box,
@@ -141,12 +141,41 @@ export default function SettingsPage() {
   const toast = useToast();
   const { overrides, setCategoryOverride, setTagsOverride, resetModuleOverrides } =
     useModuleOverrides();
-  const { categories, addCategory } = useModuleCategories();
+  const observedCategories = useMemo(
+    () => all.map((m) => m.sectionCategory).filter((s): s is string => Boolean(s)),
+    [all]
+  );
+  const { categories, userCategories, addCategory, deleteCategory } = useModuleCategories(observedCategories);
+
+  const [deleteConfirmCategory, setDeleteConfirmCategory] = useState<string | null>(null);
+
+  const handleDeleteCategory = useCallback(
+    (categoryName: string) => {
+      deleteCategory(categoryName);
+      all.forEach((mod) => {
+        const override = overrides[mod.id];
+        if (override?.category === categoryName) {
+          setCategoryOverride(mod.id, undefined);
+        }
+      });
+      setDeleteConfirmCategory(null);
+    },
+    [all, deleteCategory, overrides, setCategoryOverride]
+  );
+
+  const modulesUsingCategory = useMemo(() => {
+    if (!deleteConfirmCategory) return 0;
+    return all.filter((mod) => {
+      const override = overrides[mod.id];
+      return override?.category === deleteConfirmCategory;
+    }).length;
+  }, [all, deleteConfirmCategory, overrides]);
 
   // Modules tab: expandable row, search, filter
   const [expandedModuleId, setExpandedModuleId] = useState<string | null>(null);
   const [moduleSearch, setModuleSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState<"all" | "enabled" | "disabled">("all");
+  const [categoryInputs, setCategoryInputs] = useState<Record<string, string>>({});
 
   // Auth tab: inventory, add-key dialog, row replace, delete confirm
   const [inventory, setInventory] = useState<JwtKeyEntry[]>([]);
@@ -463,31 +492,79 @@ export default function SettingsPage() {
                                 <Typography variant="body2" color="text.secondary" sx={{ width: 72 }}>
                                   Category
                                 </Typography>
-                                <Autocomplete
-                                  freeSolo
-                                  size="small"
-                                  options={["(Use default)", ...categories]}
-                                  value={effectiveCategory}
-                                  onInputChange={(_, value) => {
-                                    const v = value?.trim();
-                                    if (v && v !== "(Use default)" && !categories.includes(v))
-                                      addCategory(v);
-                                  }}
-                                  onChange={(_, value) => {
-                                    const v =
-                                      typeof value === "string" ? value.trim() : value ?? "";
-                                    if (v === "" || v === "(Use default)") {
-                                      setCategoryOverride(mod.id, undefined);
-                                    } else {
-                                      addCategory(v);
-                                      setCategoryOverride(mod.id, v);
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <Autocomplete
+                                    freeSolo
+                                    size="small"
+                                    options={["(Use default)", ...categories]}
+                                    value={effectiveCategory}
+                                    inputValue={categoryInputs[mod.id] ?? ""}
+                                    onInputChange={(_, value) => {
+                                      setCategoryInputs((prev) => ({ ...prev, [mod.id]: value }));
+                                    }}
+                                    onChange={(_, value) => {
+                                      const v =
+                                        typeof value === "string" ? value.trim() : value ?? "";
+                                      setCategoryInputs((prev) => ({ ...prev, [mod.id]: "" }));
+                                      if (v === "" || v === "(Use default)") {
+                                        setCategoryOverride(mod.id, undefined);
+                                      } else {
+                                        addCategory(v);
+                                        setCategoryOverride(mod.id, v);
+                                      }
+                                    }}
+                                    renderOption={(props, option) => {
+                                      const opt = typeof option === "string" ? option : "";
+                                      const isUserCategory = opt !== "(Use default)" && userCategories.includes(opt);
+                                      return (
+                                        <Box
+                                          component="li"
+                                          {...props}
+                                          sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
+                                        >
+                                          <Box sx={{ flex: 1 }}>{opt}</Box>
+                                          {isUserCategory && (
+                                            <IconButton
+                                              size="small"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDeleteConfirmCategory(opt);
+                                              }}
+                                              sx={{ p: 0.5 }}
+                                              aria-label={`Delete ${opt}`}
+                                            >
+                                              <DeleteOutlineIcon fontSize="small" />
+                                            </IconButton>
+                                          )}
+                                        </Box>
+                                      );
+                                    }}
+                                    renderInput={(params) => (
+                                      <TextField {...params} placeholder="Default or select" size="small" />
+                                    )}
+                                    sx={{ minWidth: 180 }}
+                                  />
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      const inputValue = categoryInputs[mod.id]?.trim() || "";
+                                      if (inputValue && inputValue !== "(Use default)" && !categories.includes(inputValue)) {
+                                        addCategory(inputValue);
+                                        setCategoryOverride(mod.id, inputValue);
+                                        setCategoryInputs((prev) => ({ ...prev, [mod.id]: "" }));
+                                      }
+                                    }}
+                                    disabled={
+                                      !categoryInputs[mod.id]?.trim() ||
+                                      categoryInputs[mod.id]?.trim() === "(Use default)" ||
+                                      categories.includes(categoryInputs[mod.id].trim())
                                     }
-                                  }}
-                                  renderInput={(params) => (
-                                    <TextField {...params} placeholder="Default or select" size="small" />
-                                  )}
-                                  sx={{ minWidth: 180 }}
-                                />
+                                    aria-label="Add category"
+                                    sx={{ p: 0.75 }}
+                                  >
+                                    <AddIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
                               </Box>
                               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, flexWrap: "wrap" }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ width: 72, pt: 0.5 }}>
@@ -695,6 +772,20 @@ export default function SettingsPage() {
         onConfirm={handleDeleteConfirm}
         confirmColor="error"
         loading={inventoryLoading}
+      />
+      <ConfirmDialog
+        open={!!deleteConfirmCategory}
+        onClose={() => setDeleteConfirmCategory(null)}
+        title="Delete category?"
+        body={
+          modulesUsingCategory > 0
+            ? `This will delete the category "${deleteConfirmCategory}" and reset ${modulesUsingCategory} module${modulesUsingCategory === 1 ? "" : "s"} using it as their default category. This cannot be undone.`
+            : `This will delete the category "${deleteConfirmCategory}". This cannot be undone.`
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={() => deleteConfirmCategory && handleDeleteCategory(deleteConfirmCategory)}
+        confirmColor="error"
       />
     </>
   );
