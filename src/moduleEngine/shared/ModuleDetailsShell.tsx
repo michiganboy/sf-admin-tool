@@ -1,7 +1,7 @@
 import { Button } from "@mui/material";
 import PageHeader from "../../components/PageHeader";
 import { useToast } from "../../contexts/ToastContext";
-import ModuleRunForm from "../_runForm";
+import ModuleRunForm from "./_runForm";
 import { useStartRun } from "./useStartRun";
 
 export interface ModuleDetailsShellProps {
@@ -12,7 +12,6 @@ export interface ModuleDetailsShellProps {
   onNavigateToRun?: (runId: string) => void;
 }
 
-/** Standard module detail: header with Back, Run section, unified toast and optional nav to run. */
 export default function ModuleDetailsShell({
   moduleId,
   moduleName,

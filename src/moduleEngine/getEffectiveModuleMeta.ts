@@ -1,4 +1,4 @@
-import type { AdminModule } from "./_types";
+import type { AdminModule } from "./types";
 
 export interface ModuleOverrides {
   [moduleId: string]: {

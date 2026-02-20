@@ -8,14 +8,13 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import type { RunRecord } from "../runs/types";
+import type { RunRecord } from "../../runs/types";
 
 export interface ModuleRunFormProps {
   startRun: (payload: { orgLabel: string; notes?: string }) => Promise<RunRecord>;
   onRunQueued: (run: RunRecord) => void;
 }
 
-/** Shared run form: org label, notes, Start Run; calls startRun then onRunQueued (toast/nav owned by shell). */
 export default function ModuleRunForm({ startRun, onRunQueued }: ModuleRunFormProps) {
   const [orgLabel, setOrgLabel] = useState("");
   const [notes, setNotes] = useState("");

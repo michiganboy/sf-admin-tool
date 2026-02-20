@@ -14,7 +14,6 @@ export interface UseStartRunOptions {
   moduleName: string;
 }
 
-/** Shared run starter: creates run via store and returns the created run. No toast or navigation. */
 export function useStartRun({ moduleId, moduleName }: UseStartRunOptions) {
   const startRun = useCallback(
     async (payload: { orgLabel: string; notes?: string }): Promise<RunRecord> => {

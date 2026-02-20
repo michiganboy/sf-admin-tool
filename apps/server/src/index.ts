@@ -349,6 +349,10 @@ fastify.setNotFoundHandler((_, reply) => {
   return reply.type("text/html").sendFile("index.html");
 });
 
+// Register module routes
+const { registerRoutes } = await import("./routes/index.js");
+await registerRoutes(fastify);
+
 const PORT = 4387;
 fastify.listen({ port: PORT, host: "127.0.0.1" }, (err, address) => {
   if (err) {

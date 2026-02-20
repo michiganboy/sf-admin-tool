@@ -41,13 +41,12 @@ import SettingsSectionHeader from "../components/SettingsSectionHeader";
 import { useToast } from "../contexts/ToastContext";
 import { useModuleCategories } from "../hooks/useModuleCategories";
 import { useModuleOverrides } from "../hooks/useModuleOverrides";
-import { getEffectiveModuleMeta, normalizeTags } from "../modules/getEffectiveModuleMeta";
+import { getEffectiveModuleMeta, normalizeTags } from "../moduleEngine/getEffectiveModuleMeta";
 import { matchesModuleSearch } from "./modules/modulesViewModel";
 import {
-  getAllModules,
   getEnabledIds,
   setEnabledIds,
-} from "../modules/registry";
+} from "../moduleEngine/moduleEnablement";
 import {
   type JwtKeyEntry,
   deleteJwtKey,
@@ -56,6 +55,8 @@ import {
   openOrgSecretsFolder,
   uploadJwtKey,
 } from "../api/secretsClient";
+import { useAllModules } from "../moduleEngine/useAllModules";
+import { getCatalog, installModules, uninstallModule, type CatalogEntry } from "../api/modulesClient";
 
 /** Add-tag: circular IconButton (+); opens popover to enter tag name. */
 function ModuleTagAdder({
@@ -130,7 +131,9 @@ function ModuleTagAdder({
 
 /** Settings view: modules toggles and per-org JWT key inventory. */
 export default function SettingsPage() {
-  const all = getAllModules();
+  const { modules: all, refresh: refreshModules } = useAllModules();
+  const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const [enabledSet, setEnabledSet] = useState<Set<string>>(() => {
     const stored = getEnabledIds();
     if (stored === null) return new Set(all.map((m) => m.id));
@@ -146,6 +149,59 @@ export default function SettingsPage() {
     [all]
   );
   const { categories, userCategories, addCategory, deleteCategory } = useModuleCategories(observedCategories);
+  
+  const [uninstallConfirmId, setUninstallConfirmId] = useState<string | null>(null);
+  const [installingIds, setInstallingIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (tab === 0) {
+      setCatalogLoading(true);
+      getCatalog()
+        .then(setCatalog)
+        .catch((err) => {
+          console.error("Failed to load catalog:", err);
+          toast.error("Failed to load module catalog");
+        })
+        .finally(() => setCatalogLoading(false));
+    }
+  }, [tab, toast]);
+
+  const handleInstall = useCallback(async (moduleId: string) => {
+    setInstallingIds((prev) => new Set(prev).add(moduleId));
+    try {
+      await installModules([moduleId]);
+      toast.success("Module installed");
+      await refreshModules();
+      setCatalogLoading(true);
+      const updated = await getCatalog();
+      setCatalog(updated);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to install module");
+    } finally {
+      setInstallingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(moduleId);
+        return next;
+      });
+      setCatalogLoading(false);
+    }
+  }, [toast, refreshModules]);
+
+  const handleUninstall = useCallback(async (moduleId: string) => {
+    try {
+      await uninstallModule(moduleId);
+      toast.success("Module uninstalled");
+      await refreshModules();
+      setCatalogLoading(true);
+      const updated = await getCatalog();
+      setCatalog(updated);
+      setUninstallConfirmId(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to uninstall module");
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, [toast, refreshModules]);
 
   const [deleteConfirmCategory, setDeleteConfirmCategory] = useState<string | null>(null);
 
@@ -324,11 +380,65 @@ export default function SettingsPage() {
             title="Modules"
             subtitle="Enable or disable modules and customize category and tags for the Modules page."
           />
-          {all.length === 0 ? (
+          
+          {catalogLoading && catalog.length === 0 && all.length === 0 ? (
             <Typography color="text.secondary" sx={{ mt: 2 }}>
-              No modules discovered.
+              Loading modules...
             </Typography>
           ) : (
+            <>
+              {(() => {
+                const uninstalledDefaults = catalog.filter((e) => e.source === "default" && !e.installed);
+                if (uninstalledDefaults.length > 0) {
+                  return (
+                    <Box sx={{ mt: 2, mb: 3 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Install Default Modules
+                      </Typography>
+                      <Stack spacing={1}>
+                        {uninstalledDefaults.map((entry) => (
+                          <Box
+                            key={entry.moduleId}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              p: 1.5,
+                              border: 1,
+                              borderColor: "divider",
+                              borderRadius: 1,
+                            }}
+                          >
+                            <Box>
+                              <Typography variant="body2" fontWeight={500}>
+                                {entry.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {entry.description}
+                              </Typography>
+                            </Box>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleInstall(entry.moduleId)}
+                              disabled={installingIds.has(entry.moduleId)}
+                            >
+                              {installingIds.has(entry.moduleId) ? "Installing..." : "Install"}
+                            </Button>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+                  );
+                }
+                return null;
+              })()}
+              
+              {all.length === 0 ? (
+                <Typography color="text.secondary" sx={{ mt: 2 }}>
+                  No modules installed. Install modules from the catalog above.
+                </Typography>
+              ) : (
             <Stack spacing={2} sx={{ mt: 2 }}>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
                 <TextField
@@ -456,12 +566,23 @@ export default function SettingsPage() {
                               Reset
                             </Button>
                           )}
-                          <Switch
-                            checked={enabled}
-                            onChange={(_, checked) => handleToggle(mod.id, checked)}
-                            inputProps={{ "aria-label": `Enable ${mod.name}` }}
-                            size="small"
-                          />
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              onClick={() => setUninstallConfirmId(mod.id)}
+                              sx={{ minWidth: 0, px: 1 }}
+                            >
+                              Uninstall
+                            </Button>
+                            <Switch
+                              checked={enabled}
+                              onChange={(_, checked) => handleToggle(mod.id, checked)}
+                              inputProps={{ "aria-label": `Enable ${mod.name}` }}
+                              size="small"
+                            />
+                          </Stack>
                         </Box>
 
                         <Collapse
@@ -604,6 +725,8 @@ export default function SettingsPage() {
                 })()}
               </Stack>
             </Stack>
+              )}
+            </>
           )}
         </>
       )}
@@ -785,6 +908,16 @@ export default function SettingsPage() {
         confirmLabel="Delete"
         cancelLabel="Cancel"
         onConfirm={() => deleteConfirmCategory && handleDeleteCategory(deleteConfirmCategory)}
+        confirmColor="error"
+      />
+      <ConfirmDialog
+        open={!!uninstallConfirmId}
+        onClose={() => setUninstallConfirmId(null)}
+        title="Uninstall module?"
+        body={`This will uninstall the module. You can reinstall it from the catalog later.`}
+        confirmLabel="Uninstall"
+        cancelLabel="Cancel"
+        onConfirm={() => uninstallConfirmId && handleUninstall(uninstallConfirmId)}
         confirmColor="error"
       />
     </>
