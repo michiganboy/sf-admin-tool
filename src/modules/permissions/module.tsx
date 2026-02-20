@@ -23,7 +23,6 @@ const module: AdminModule = {
   id: "permissions",
   name: "Permissions",
   description: "Inspect and compare permission sets and profiles.",
-  status: "alpha",
   category: "admin",
   sectionCategory: "Permissions",
   tags: ["profiles", "permission-sets", "audit"],
