@@ -42,6 +42,7 @@ import { useToast } from "../contexts/ToastContext";
 import { useModuleCategories } from "../hooks/useModuleCategories";
 import { useModuleOverrides } from "../hooks/useModuleOverrides";
 import { getEffectiveModuleMeta, normalizeTags } from "../modules/getEffectiveModuleMeta";
+import { matchesModuleSearch } from "./modules/modulesViewModel";
 import {
   getAllModules,
   getEnabledIds,
@@ -336,13 +337,7 @@ export default function SettingsPage() {
                     const enabled = enabledSet.has(mod.id);
                     if (moduleFilter === "enabled" && !enabled) return false;
                     if (moduleFilter === "disabled" && enabled) return false;
-                    if (!moduleSearch.trim()) return true;
-                    const q = moduleSearch.trim().toLowerCase();
-                    return (
-                      mod.id.toLowerCase().includes(q) ||
-                      mod.name.toLowerCase().includes(q) ||
-                      mod.description.toLowerCase().includes(q)
-                    );
+                    return matchesModuleSearch(mod, moduleSearch);
                   });
                   if (filtered.length === 0) {
                     return (

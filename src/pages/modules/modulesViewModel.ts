@@ -8,8 +8,8 @@ export interface ModuleWithEffectiveMeta extends AdminModule {
   effectiveTags: string[];
 }
 
-/** Case-insensitive match on id, name, or description. */
-function matchesSearch(mod: AdminModule, q: string): boolean {
+/** Case-insensitive match on id, name, or description. Shared for Modules and Settings. */
+export function matchesModuleSearch(mod: AdminModule, q: string): boolean {
   if (!q.trim()) return true;
   const lower = q.trim().toLowerCase();
   return (
@@ -17,6 +17,10 @@ function matchesSearch(mod: AdminModule, q: string): boolean {
     mod.name.toLowerCase().includes(lower) ||
     mod.description.toLowerCase().includes(lower)
   );
+}
+
+function matchesSearch(mod: AdminModule, q: string): boolean {
+  return matchesModuleSearch(mod, q);
 }
 
 /** Module has all of the selected tags (AND); uses effectiveTags. */

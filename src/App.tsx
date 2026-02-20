@@ -9,14 +9,12 @@ import RunDetailsPage from "./pages/RunDetailsPage";
 import RunsPage from "./pages/RunsPage";
 import SettingsPage from "./pages/SettingsPage";
 import PageHeader from "./components/PageHeader";
+import { STORAGE_KEYS } from "./constants/storageKeys";
 import { ColorModeProvider } from "./contexts/ColorModeContext";
 import { ToastProvider } from "./contexts/ToastContext";
 
-// Persisted left-nav selection.
-const activeViewStorageKey = "sf-admin-tool:active-view";
-
 function getStoredActiveView(): NavKey {
-  const raw = typeof window !== "undefined" ? localStorage.getItem(activeViewStorageKey) : null;
+  const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.ACTIVE_VIEW) : null;
   return raw === "dashboard" || raw === "modules" || raw === "runs" || raw === "settings" ? raw : "dashboard";
 }
 
@@ -27,14 +25,14 @@ export default function App() {
 
   const setActiveView = (key: NavKey) => {
     setActive(key);
-    localStorage.setItem(activeViewStorageKey, key);
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_VIEW, key);
     setSelectedModuleId(null);
     setSelectedRunId(null);
   };
 
   const navigateToRun = (runId: string) => {
     setActive("runs");
-    localStorage.setItem(activeViewStorageKey, "runs");
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_VIEW, "runs");
     setSelectedModuleId(null);
     setSelectedRunId(runId);
   };
